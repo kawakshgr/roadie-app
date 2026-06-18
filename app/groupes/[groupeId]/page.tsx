@@ -4,6 +4,7 @@ import Link from 'next/link'
 import ThemeToggle from '../../ThemeToggle'
 import LogoutButton from '../../LogoutButton'
 import MembreRow from './MembreRow'
+import InviteMembre from './InviteMembre'
 
 export default async function GroupePage({
   params,
@@ -65,6 +66,8 @@ export default async function GroupePage({
       <Link href={`/groupes/${groupeId}/tournees`} className="import-btn glass" style={{ marginBottom: 8 }}>
         🗺 Voir les tournées
       </Link>
+
+      {isTM && <InviteMembre groupeId={groupeId} />}
 
       <div className="label">Équipe</div>
       {(membres ?? []).map((m) => (
