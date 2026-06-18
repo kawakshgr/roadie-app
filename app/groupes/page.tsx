@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ThemeToggle from '../ThemeToggle'
 import LogoutButton from '../LogoutButton'
+import ProfileButton from '../ProfileButton'
 import CreateGroupe from './CreateGroupe'
 import EditGroupe from './EditGroupe'
 import ConfirmDelete from '../ConfirmDelete'
@@ -29,6 +30,7 @@ export default async function GroupesPage() {
           <div className="sub">{groupes.length} groupe{groupes.length > 1 ? 's' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <ProfileButton />
           <ThemeToggle />
           <LogoutButton />
         </div>
