@@ -41,10 +41,11 @@ export default async function GroupePage({
 
   const peutEditer = isTM || isSuperAdmin
 
-  const { data: membres } = await supabase
-    .from('membres')
-    .select('id, role, user_id, profils(nom, email)')
-    .eq('groupe_id', groupeId)
+const { data: membres, error: errMembres } = await supabase
+  .from('membres')
+  .select('id, role, user_id, profils(nom, email)')
+  .eq('groupe_id', groupeId)
+
 
   const { data: tournees } = await supabase
     .from('tournees')
