@@ -36,6 +36,23 @@ export default function ImportCSV({ tourneeId }: { tourneeId: string }) {
     })
   }
 
+  function telechargerModele() {
+    const contenu = [
+      'numero,ville,salle,pays,date,load_in,soundcheck,doors,set,curfew',
+      '1,Paris,Olympia,FR,2026-09-10,14:00,16:30,19:00,21:00,23:30',
+      '2,Lyon,Le Transbordeur,FR,2026-09-12,13:00,16:00,19:30,21:00,23:00',
+      '3,Bruxelles,Ancienne Belgique,BE,2026-09-14,12:30,15:30,19:00,20:45,23:30',
+    ].join('\n')
+
+    const blob = new Blob([contenu], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'modele_dates_roadie.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     if (!f) return
@@ -61,20 +78,14 @@ export default function ImportCSV({ tourneeId }: { tourneeId: string }) {
       })
       if (error) throw error
       coords = data.results
-      console.log('villes envoyées:', villes)
-      console.log('réponse data:', data)
-      console.log('coords reçues:', coords)
-    } catch (err) {
-      console.log('erreur géocodage:', err)
+    } catch {
       setMsg('Géocodage indisponible, import sans coordonnées…')
     }
 
     setMsg('Import en cours…')
 
     const payload = rows.map((r) => {
-      const cle = `${r.ville}, ${r.pays}`
-      const c = coords[cle]
-      console.log(`clé "${cle}" →`, c)
+      const c = coords[`${r.ville}, ${r.pays}`]
       return {
         tournee_id: tourneeId,
         numero: r.numero,
@@ -112,6 +123,10 @@ export default function ImportCSV({ tourneeId }: { tourneeId: string }) {
               <button className="modal-x" onClick={() => setOpen(false)}>×</button>
             </div>
             <div className="modal-body">
+              <button className="btn-ghost" onClick={telechargerModele} style={{ marginBottom: 14, width: '100%' }}>
+                ⬇ Télécharger un modèle CSV
+              </button>
+
               <label className="drop">
                 <input type="file" accept=".csv" onChange={onFile} style={{ display: 'none' }} />
                 <div style={{ fontSize: 30 }}>📄</div>
