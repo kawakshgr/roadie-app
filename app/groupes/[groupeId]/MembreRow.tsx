@@ -7,7 +7,12 @@ type Membre = {
   id: string
   role: string
   user_id: string
-  profils: { nom: string | null; email: string | null } | null
+  profils: {
+    pseudo: string | null
+    prenom: string | null
+    nom: string | null
+    email: string | null
+  } | null
 }
 
 export default function MembreRow({
@@ -20,8 +25,10 @@ export default function MembreRow({
   const supabase = createClient()
   const router = useRouter()
 
-  const nom = membre.profils?.nom || membre.profils?.email || 'Membre'
-  const email = membre.profils?.email || ''
+  const p = membre.profils
+  // priorité : pseudo > prénom > nom > email
+  const affichage = p?.pseudo || p?.prenom || p?.nom || p?.email || 'Membre'
+  const email = p?.email || ''
 
   async function changerRole(nouveau: string) {
     setBusy(true)
@@ -36,7 +43,7 @@ export default function MembreRow({
   }
 
   async function retirer() {
-    if (!confirm(`Retirer ${nom} du groupe ?`)) return
+    if (!confirm(`Retirer ${affichage} du groupe ?`)) return
     setBusy(true)
     const { error } = await supabase.from('membres').delete().eq('id', membre.id)
     setBusy(false)
@@ -46,9 +53,9 @@ export default function MembreRow({
 
   return (
     <div className="guest glass">
-      <div className="membre-avatar">{nom.charAt(0).toUpperCase()}</div>
+      <div className="membre-avatar">{affichage.charAt(0).toUpperCase()}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="gname">{nom}{estMoi && ' (toi)'}</div>
+        <div className="gname">{affichage}{estMoi && ' (toi)'}</div>
         <div className="gmeta">{email}</div>
       </div>
 
