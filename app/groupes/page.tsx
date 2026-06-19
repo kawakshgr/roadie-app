@@ -13,20 +13,39 @@ export default async function GroupesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: membres } = await supabase
-    .from('membres')
-    .select('role, groupe_id, groupes(id, nom)')
-    .eq('user_id', user.id)
+  // suis-je super-admin ?
+  const { data: profilMoi } = await supabase
+    .from('profils')
+    .select('is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isSuperAdmin = profilMoi?.is_super_admin === true
 
-  const groupes = (membres ?? [])
-    .filter((m) => m.groupes)
-    .map((m) => ({ ...(m.groupes as any), role: m.role }))
+  let groupes: { id: string; nom: string; role: string }[] = []
+
+  if (isSuperAdmin) {
+    // super-admin : tous les groupes de la plateforme
+    const { data: tous } = await supabase
+      .from('groupes')
+      .select('id, nom')
+      .order('nom')
+    groupes = (tous ?? []).map((g) => ({ ...g, role: 'tm' }))
+  } else {
+    // membre normal : ses groupes
+    const { data: membres } = await supabase
+      .from('membres')
+      .select('role, groupe_id, groupes(id, nom)')
+      .eq('user_id', user.id)
+    groupes = (membres ?? [])
+      .filter((m) => m.groupes)
+      .map((m) => ({ ...(m.groupes as any), role: m.role }))
+  }
 
   return (
     <div className="wrap">
       <div className="page-head">
         <div>
-          <h1>Mes groupes</h1>
+          <h1>{isSuperAdmin ? 'Tous les groupes' : 'Mes groupes'}</h1>
           <div className="sub">{groupes.length} groupe{groupes.length > 1 ? 's' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -36,7 +55,7 @@ export default async function GroupesPage() {
         </div>
       </div>
 
-      <CreateGroupe />
+      <CreateGroupe isSuperAdmin={isSuperAdmin} />
 
       <div className="datelist">
         {groupes.map((g) => (
@@ -55,7 +74,7 @@ export default async function GroupesPage() {
               </div>
               <div style={{ color: 'var(--ink-faint)', fontSize: 20 }}>›</div>
             </Link>
-            {g.role === 'tm' && (
+            {(g.role === 'tm' || isSuperAdmin) && (
               <>
                 <EditGroupe id={g.id} nomActuel={g.nom} />
                 <ConfirmDelete table="groupes" id={g.id} nom={g.nom} libelle="ce groupe" />

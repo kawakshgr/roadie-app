@@ -39,8 +39,17 @@ export default async function TourneesPage({
     .select('role')
     .eq('groupe_id', groupeId)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
   const isTM = moi?.role === 'tm'
+
+  const { data: profilMoi } = await supabase
+    .from('profils')
+    .select('is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isSuperAdmin = profilMoi?.is_super_admin === true
+
+  const peutEditer = isTM || isSuperAdmin
 
   const { data: tournees } = await supabase
     .from('tournees')
@@ -67,7 +76,7 @@ export default async function TourneesPage({
         </div>
       </div>
 
-      {isTM && <CreateTournee groupeId={groupeId} />}
+      {peutEditer && <CreateTournee groupeId={groupeId} />}
 
       <div className="datelist">
         {(tournees ?? []).map((t) => (
@@ -84,7 +93,7 @@ export default async function TourneesPage({
               </div>
               <div style={{ color: 'var(--ink-faint)', fontSize: 20 }}>›</div>
             </Link>
-            {isTM && (
+            {peutEditer && (
               <>
                 <EditTournee id={t.id} nomActuel={t.nom} />
                 <ConfirmDelete table="tournees" id={t.id} nom={t.nom} libelle="cette tournée" />
@@ -94,7 +103,7 @@ export default async function TourneesPage({
         ))}
         {(tournees?.length ?? 0) === 0 && (
           <p style={{ color: 'var(--ink-dim)', fontSize: 14, padding: '8px' }}>
-            Aucune tournée. {isTM ? 'Crée la première ci-dessus.' : ''}
+            Aucune tournée. {peutEditer ? 'Crée la première ci-dessus.' : ''}
           </p>
         )}
       </div>

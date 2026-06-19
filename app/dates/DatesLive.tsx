@@ -9,9 +9,9 @@ type TourDate = {
 }
 
 export default function DatesLive({
-  initial, tourneeId,
+  initial, tourneeId, peutEditer = false,
 }: {
-  initial: TourDate[]; tourneeId: string
+  initial: TourDate[]; tourneeId: string; peutEditer?: boolean
 }) {
   const [dates, setDates] = useState<TourDate[]>(initial)
   const supabase = createClient()
@@ -43,7 +43,7 @@ export default function DatesLive({
 
   return (
     <div className="datelist">
-      {dates.map((d) => <DateItem key={d.id} d={d} tourneeId={tourneeId} />)}
+      {dates.map((d) => <DateItem key={d.id} d={d} tourneeId={tourneeId} peutEditer={peutEditer} />)}
     </div>
   )
 }

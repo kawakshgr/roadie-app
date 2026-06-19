@@ -29,8 +29,17 @@ export default async function GroupePage({
     .select('role')
     .eq('groupe_id', groupeId)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
   const isTM = moi?.role === 'tm'
+
+  const { data: profilMoi } = await supabase
+    .from('profils')
+    .select('is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isSuperAdmin = profilMoi?.is_super_admin === true
+
+  const peutEditer = isTM || isSuperAdmin
 
   const { data: membres } = await supabase
     .from('membres')
@@ -67,14 +76,14 @@ export default async function GroupePage({
         🗺 Voir les tournées
       </Link>
 
-      {isTM && <InviteMembre groupeId={groupeId} />}
+      {peutEditer && <InviteMembre groupeId={groupeId} />}
 
       <div className="label">Équipe</div>
       {(membres ?? []).map((m) => (
         <MembreRow
           key={m.id}
           membre={m as any}
-          isTM={isTM}
+          isTM={peutEditer}
           estMoi={m.user_id === user.id}
         />
       ))}

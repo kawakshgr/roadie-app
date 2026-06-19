@@ -7,6 +7,7 @@ import DatesLive from '../../../../dates/DatesLive'
 import MapSection from '../../../../dates/MapSection'
 import ImportCSV from '../../../../dates/ImportCSV'
 import AddDate from '../../../../dates/AddDate'
+import PiecesJointes from '../../../../dates/PiecesJointes'
 
 export default async function TourneeDatesPage({
   params,
@@ -31,8 +32,19 @@ export default async function TourneeDatesPage({
     .select('role')
     .eq('groupe_id', groupeId)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
   const isTM = moi?.role === 'tm'
+  const isTechnicien = moi?.role === 'technicien'
+
+  const { data: profilMoi } = await supabase
+    .from('profils')
+    .select('is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isSuperAdmin = profilMoi?.is_super_admin === true
+
+  const peutEditer = isTM || isSuperAdmin
+  const peutGererPJ = isTM || isTechnicien || isSuperAdmin
 
   const { data: dates, error: e2 } = await supabase
     .from('dates')
@@ -61,16 +73,17 @@ export default async function TourneeDatesPage({
         </div>
       </div>
 
-      {isTM && (
+      {peutEditer && (
         <div className="tm-actions">
           <ImportCSV tourneeId={tourneeId} />
           <AddDate tourneeId={tourneeId} />
         </div>
       )}
-
+      <div className="label">Documents de la tournée</div>
+      <PiecesJointes tourneeId={tourneeId} peutEditer={peutGererPJ} />
       <MapSection dates={dates ?? []} />
 
-      <DatesLive initial={dates ?? []} tourneeId={tourneeId} />
+      <DatesLive initial={dates ?? []} tourneeId={tourneeId} peutEditer={peutEditer} />
     </div>
   )
 }

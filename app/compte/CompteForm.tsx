@@ -10,6 +10,10 @@ type Profil = {
   pseudo?: string | null
   adresse?: string | null
   telephone?: string | null
+  passeport_numero?: string | null
+  passeport_expiration?: string | null
+  nationalite?: string | null
+  date_naissance?: string | null
 }
 
 export default function CompteForm({ profil, email }: { profil: Profil; email: string }) {
@@ -19,6 +23,10 @@ export default function CompteForm({ profil, email }: { profil: Profil; email: s
     pseudo: profil.pseudo ?? '',
     adresse: profil.adresse ?? '',
     telephone: profil.telephone ?? '',
+    passeport_numero: profil.passeport_numero ?? '',
+    passeport_expiration: profil.passeport_expiration ?? '',
+    nationalite: profil.nationalite ?? '',
+    date_naissance: profil.date_naissance ?? '',
   })
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
@@ -45,6 +53,10 @@ export default function CompteForm({ profil, email }: { profil: Profil; email: s
         pseudo: f.pseudo.trim() || null,
         adresse: f.adresse.trim() || null,
         telephone: f.telephone.trim() || null,
+        passeport_numero: f.passeport_numero.trim() || null,
+        passeport_expiration: f.passeport_expiration || null,
+        nationalite: f.nationalite.trim() || null,
+        date_naissance: f.date_naissance || null,
       })
       .eq('id', profil.id)
     setBusy(false)
@@ -77,14 +89,11 @@ export default function CompteForm({ profil, email }: { profil: Profil; email: s
     <>
       <div className="label">Informations</div>
       <div className="form glass">
-        <input
-          className="login-input"
-          value={email}
-          disabled
-          style={{ opacity: 0.6, cursor: 'not-allowed' }}
-        />
-        <input className="login-input" placeholder="Prénom" value={f.prenom} onChange={(e) => set('prenom', e.target.value)} />
-        <input className="login-input" placeholder="Nom" value={f.nom} onChange={(e) => set('nom', e.target.value)} />
+        <input className="login-input" value={email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+        <div className="add-times">
+          <input className="login-input" placeholder="Prénom" value={f.prenom} onChange={(e) => set('prenom', e.target.value)} />
+          <input className="login-input" placeholder="Nom" value={f.nom} onChange={(e) => set('nom', e.target.value)} />
+        </div>
         <input className="login-input" placeholder="Pseudo" value={f.pseudo} onChange={(e) => set('pseudo', e.target.value)} />
         <input className="login-input" placeholder="Téléphone" value={f.telephone} onChange={(e) => set('telephone', e.target.value)} />
         <input className="login-input" placeholder="Adresse" value={f.adresse} onChange={(e) => set('adresse', e.target.value)} />
@@ -92,6 +101,19 @@ export default function CompteForm({ profil, email }: { profil: Profil; email: s
           {busy ? 'Enregistrement…' : 'Enregistrer'}
         </button>
         {msg && <p style={{ marginTop: 10, fontSize: 14, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{msg}</p>}
+      </div>
+
+      <div className="label">Voyage & documents</div>
+      <div className="form glass">
+        <input className="login-input" placeholder="Nationalité" value={f.nationalite} onChange={(e) => set('nationalite', e.target.value)} />
+        <input className="login-input" placeholder="N° de passeport" value={f.passeport_numero} onChange={(e) => set('passeport_numero', e.target.value)} />
+        <div style={{ fontSize: 12, color: 'var(--ink-dim)', margin: '2px 4px 6px' }}>Expiration du passeport</div>
+        <input className="login-input" type="date" value={f.passeport_expiration} onChange={(e) => set('passeport_expiration', e.target.value)} />
+        <div style={{ fontSize: 12, color: 'var(--ink-dim)', margin: '2px 4px 6px' }}>Date de naissance</div>
+        <input className="login-input" type="date" value={f.date_naissance} onChange={(e) => set('date_naissance', e.target.value)} />
+        <button className="send-btn" onClick={enregistrer} disabled={busy}>
+          {busy ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
       </div>
 
       <div className="label">Mot de passe</div>

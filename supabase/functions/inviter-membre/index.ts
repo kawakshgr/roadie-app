@@ -10,8 +10,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   try {
-    const { email, groupe_id, role, mot_de_passe } = await req.json()
-    console.log('Reçu:', { email, groupe_id, role })
+    const { email, groupe_id, role, mot_de_passe, nom, prenom } = await req.json()
 
     if (!email || !groupe_id || !role || !mot_de_passe) {
       return json({ error: 'Champs manquants' }, 400)
@@ -29,11 +28,9 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     )
 
-    // Qui fait la demande ?
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return json({ error: 'Non authentifié' }, 401)
 
-    // Autorisé ? (TM du groupe ou super-admin)
     const { data: membre } = await admin
       .from('membres')
       .select('role')
@@ -41,16 +38,16 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const { data: profil } = await admin
+    const { data: profilDemandeur } = await admin
       .from('profils')
       .select('is_super_admin')
       .eq('id', user.id)
       .maybeSingle()
 
-    const autorise = membre?.role === 'tm' || profil?.is_super_admin === true
+    const autorise = membre?.role === 'tm' || profilDemandeur?.is_super_admin === true
     if (!autorise) return json({ error: 'Non autorisé' }, 403)
 
-    // 1. Créer le compte (email déjà confirmé, pas d'email envoyé)
+    // 1. Créer le compte
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password: mot_de_passe,
@@ -60,7 +57,6 @@ Deno.serve(async (req) => {
     let userId: string
 
     if (createErr) {
-      // si l'utilisateur existe déjà, on le récupère pour le rattacher quand même
       if (createErr.message.includes('already been registered') || createErr.message.includes('already exists')) {
         const { data: list } = await admin.auth.admin.listUsers()
         const existant = list.users.find((u) => u.email === email)
@@ -74,7 +70,16 @@ Deno.serve(async (req) => {
       userId = created.user.id
     }
 
-    // 2. Rattacher au groupe avec le rôle (s'il n'y est pas déjà)
+    // 2. Renseigner nom/prénom dans le profil (le trigger a créé la ligne)
+    await admin
+      .from('profils')
+      .update({
+        nom: nom?.trim() || null,
+        prenom: prenom?.trim() || null,
+      })
+      .eq('id', userId)
+
+    // 3. Rattacher au groupe
     const { error: membreErr } = await admin
       .from('membres')
       .insert({ groupe_id, user_id: userId, role })

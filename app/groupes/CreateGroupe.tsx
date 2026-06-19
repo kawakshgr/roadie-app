@@ -3,13 +3,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function CreateGroupe() {
+export default function CreateGroupe({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const [open, setOpen] = useState(false)
   const [nom, setNom] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const supabase = createClient()
   const router = useRouter()
+
+  if (!isSuperAdmin) return null
 
   async function creer() {
     if (!nom.trim()) { setMsg('Entre un nom'); return }

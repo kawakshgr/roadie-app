@@ -4,6 +4,10 @@ import Link from 'next/link'
 import ThemeToggle from '../../ThemeToggle'
 import InviteForm from './InviteForm'
 import InviteList from './InviteList'
+import TransportForm from './TransportForm'
+import TransportItem from './TransportItem'
+import EditDate from './EditDate'
+import PiecesJointes from '../PiecesJointes'
 
 function fmtLong(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', {
@@ -30,13 +34,34 @@ export default async function DayPage({
 
   if (error || !d) notFound()
 
-  const { data: membre } = await supabase
-    .from('membres')
-    .select('role')
-    .eq('tournee_id', d.tournee_id)
-    .eq('user_id', user.id)
+  const { data: tournee } = await supabase
+    .from('tournees')
+    .select('groupe_id')
+    .eq('id', d.tournee_id)
     .single()
-  const isTM = membre?.role === 'tm'
+
+let isTM = false
+  let isTechnicien = false
+  if (tournee) {
+    const { data: membre } = await supabase
+      .from('membres')
+      .select('role')
+      .eq('groupe_id', tournee.groupe_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    isTM = membre?.role === 'tm'
+    isTechnicien = membre?.role === 'technicien'
+  }
+
+  const { data: profilMoi } = await supabase
+    .from('profils')
+    .select('is_super_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isSuperAdmin = profilMoi?.is_super_admin === true
+
+  const peutEditer = isTM || isSuperAdmin
+  const peutGererPJ = isTM || isTechnicien || isSuperAdmin
 
   const { data: invites } = await supabase
     .from('invitations')
@@ -44,15 +69,40 @@ export default async function DayPage({
     .eq('date_id', d.id)
     .order('created_at', { ascending: true })
 
+  const { data: transports } = await supabase
+    .from('transports')
+    .select('*')
+    .eq('date_id', d.id)
+
+  let membresListe: { user_id: string; nom: string }[] = []
+  if (tournee) {
+    const { data: ms } = await supabase
+      .from('membres')
+      .select('user_id, profils(nom, prenom, email)')
+      .eq('groupe_id', tournee.groupe_id)
+    membresListe = (ms ?? []).map((m: any) => {
+      const p = m.profils
+      const nom = p?.prenom && p?.nom ? `${p.prenom} ${p.nom}` : (p?.nom || p?.email || 'Membre')
+      return { user_id: m.user_id, nom }
+    })
+  }
+
+  const nomDe = (uid: string) =>
+    membresListe.find((m) => m.user_id === uid)?.nom ?? 'Membre'
+
   const h = d.horaires ?? {}
   const lignes: [string, string][] = [
     ['Load-in', h.load], ['Soundcheck', h.soundcheck],
     ['Doors', h.doors], ['Set', h.set], ['Curfew', h.curfew],
   ].filter(([, v]) => v) as [string, string][]
 
+  const retour = tournee
+    ? `/groupes/${tournee.groupe_id}/tournees/${d.tournee_id}`
+    : '/groupes'
+
   return (
     <div className="wrap">
-      <Link href="/dates" className="back-btn glass">
+      <Link href={retour} className="back-btn glass">
         <span className="back-chevron">‹</span>
         <span>Itinéraire</span>
       </Link>
@@ -66,6 +116,8 @@ export default async function DayPage({
         <ThemeToggle />
       </div>
 
+      {peutEditer && <EditDate d={d} />}
+
       <div className="label">Horaires du jour</div>
       <div className="sched glass">
         {lignes.map(([nom, heure]) => (
@@ -74,6 +126,9 @@ export default async function DayPage({
             <span className="ev">{nom}</span>
           </div>
         ))}
+        {lignes.length === 0 && (
+          <div className="row"><span className="ev" style={{ color: 'var(--ink-dim)' }}>Aucun horaire renseigné</span></div>
+        )}
       </div>
 
       {d.hebergement?.hotel && (
@@ -89,8 +144,34 @@ export default async function DayPage({
         </>
       )}
 
+      <div className="label">Transport</div>
+      {(d.km_prochaine || d.depart_hotel) && (
+        <div className="card glass">
+          <div className="ic">📍</div>
+          <div style={{ flex: 1 }}>
+            {d.depart_hotel && <div className="h">Départ hôtel : {d.depart_hotel}</div>}
+            {d.km_prochaine && <div className="d">{d.km_prochaine} km vers la prochaine date</div>}
+          </div>
+        </div>
+      )}
+
+      {(transports ?? []).map((t: any) => (
+        <TransportItem key={t.id} t={t} nom={nomDe(t.user_id)} isTM={peutEditer} />
+      ))}
+
+      {(transports?.length ?? 0) === 0 && !peutEditer && (
+        <p style={{ color: 'var(--ink-dim)', fontSize: 14, padding: '4px 8px' }}>
+          Aucun transport renseigné.
+        </p>
+      )}
+
+      {peutEditer && <TransportForm dateId={d.id} membres={membresListe} />}
+
+      <div className="label">Pièces jointes</div>
+      <PiecesJointes dateId={d.id} peutEditer={peutGererPJ} />
+
       <div className="label">Invitations</div>
-      <InviteList dateId={d.id} initial={invites ?? []} isTM={isTM} />
+      <InviteList dateId={d.id} initial={invites ?? []} isTM={peutEditer} />
       <InviteForm dateId={d.id} />
     </div>
   )
