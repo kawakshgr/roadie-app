@@ -22,20 +22,18 @@ export default function InviteMembre({ groupeId }: { groupeId: string }) {
     setMdp(p)
   }
 
-  async function creer() {
+  async function ajouter() {
     if (!email.trim()) { setMsg('Entre un email'); return }
-    if (!prenom.trim() || !nom.trim()) { setMsg('Prénom et nom obligatoires'); return }
-    if (mdp.length < 6) { setMsg('Mot de passe : 6 caractères minimum'); return }
-    setBusy(true); setMsg('Création du compte…')
+    setBusy(true); setMsg('Traitement…')
 
     const { data, error } = await supabase.functions.invoke('inviter-membre', {
       body: {
         email: email.trim().toLowerCase(),
         groupe_id: groupeId,
         role,
-        mot_de_passe: mdp,
-        nom: nom.trim(),
-        prenom: prenom.trim(),
+        mot_de_passe: mdp || undefined,
+        nom: nom.trim() || undefined,
+        prenom: prenom.trim() || undefined,
       },
     })
     setBusy(false)
@@ -43,7 +41,11 @@ export default function InviteMembre({ groupeId }: { groupeId: string }) {
     if (error) { setMsg('Erreur : ' + error.message); return }
     if (data?.error) { setMsg('Erreur : ' + data.error); return }
 
-    setMsg(`✓ Compte créé. Identifiants : ${email} / ${mdp}`)
+    if (data?.estNouveau) {
+      setMsg(`✓ Compte créé. Identifiants : ${data.email} / ${data.mot_de_passe}`)
+    } else {
+      setMsg('✓ Membre existant rattaché au groupe')
+    }
     setEmail(''); setPrenom(''); setNom(''); setMdp('')
     router.refresh()
   }
@@ -62,10 +64,6 @@ export default function InviteMembre({ groupeId }: { groupeId: string }) {
               <button className="modal-x" onClick={() => setOpen(false)}>×</button>
             </div>
             <div className="modal-body">
-              <div className="add-times">
-                <input className="login-input" placeholder="Prénom *" value={prenom} onChange={(e) => setPrenom(e.target.value)} />
-                <input className="login-input" placeholder="Nom *" value={nom} onChange={(e) => setNom(e.target.value)} />
-              </div>
               <input
                 className="login-input"
                 type="email"
@@ -78,10 +76,19 @@ export default function InviteMembre({ groupeId }: { groupeId: string }) {
                 <option value="technicien">Technicien</option>
                 <option value="tm">Tour Manager</option>
               </select>
+
+              <p style={{ fontSize: 13, color: 'var(--ink-dim)', margin: '6px 4px 10px', lineHeight: 1.5 }}>
+                Si la personne a déjà un compte, elle sera simplement rattachée. Sinon, remplis les infos ci-dessous pour créer son compte.
+              </p>
+
+              <div className="add-times">
+                <input className="login-input" placeholder="Prénom (nouveau compte)" value={prenom} onChange={(e) => setPrenom(e.target.value)} />
+                <input className="login-input" placeholder="Nom (nouveau compte)" value={nom} onChange={(e) => setNom(e.target.value)} />
+              </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   className="login-input"
-                  placeholder="Mot de passe provisoire *"
+                  placeholder="Mot de passe (auto si vide)"
                   value={mdp}
                   onChange={(e) => setMdp(e.target.value)}
                   style={{ flex: 1 }}
@@ -90,15 +97,13 @@ export default function InviteMembre({ groupeId }: { groupeId: string }) {
                   Générer
                 </button>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--ink-dim)', marginTop: 4, lineHeight: 1.5 }}>
-                Le compte est créé immédiatement. La personne pourra compléter son profil (passeport, adresse…) et changer son mot de passe elle-même.
-              </p>
+
               {msg && <p style={{ fontSize: 14, marginTop: 10, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{msg}</p>}
             </div>
             <div className="modal-foot">
               <button className="btn-ghost" onClick={() => setOpen(false)}>Fermer</button>
-              <button className="btn-primary" onClick={creer} disabled={busy}>
-                {busy ? 'Création…' : 'Créer le compte'}
+              <button className="btn-primary" onClick={ajouter} disabled={busy}>
+                {busy ? 'Traitement…' : 'Ajouter'}
               </button>
             </div>
           </div>

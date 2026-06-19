@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   try {
     const { email, groupe_id, role, mot_de_passe, nom, prenom } = await req.json()
 
-    if (!email || !groupe_id || !role || !mot_de_passe) {
+    if (!email || !groupe_id || !role) {
       return json({ error: 'Champs manquants' }, 400)
     }
 
@@ -47,53 +47,62 @@ Deno.serve(async (req) => {
     const autorise = membre?.role === 'tm' || profilDemandeur?.is_super_admin === true
     if (!autorise) return json({ error: 'Non autorisé' }, 403)
 
-    // 1. Créer le compte
-    const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      email,
-      password: mot_de_passe,
-      email_confirm: true,
-    })
+    // Le compte existe-t-il déjà ?
+    const { data: list } = await admin.auth.admin.listUsers()
+    const existant = list.users.find((u) => u.email === email)
 
     let userId: string
+    let estNouveau = false
+    let mdpGenere = ''
 
-    if (createErr) {
-      if (createErr.message.includes('already been registered') || createErr.message.includes('already exists')) {
-        const { data: list } = await admin.auth.admin.listUsers()
-        const existant = list.users.find((u) => u.email === email)
-        if (!existant) return json({ error: 'Utilisateur existant introuvable' }, 400)
-        userId = existant.id
-      } else {
-        console.error('Erreur createUser:', createErr)
-        return json({ error: createErr.message }, 400)
-      }
+    if (existant) {
+      // compte existant : on le rattache, pas besoin de mot de passe
+      userId = existant.id
     } else {
+      // nouveau compte : mot de passe fourni ou généré
+      mdpGenere = mot_de_passe?.trim() || genererMdp()
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
+        email,
+        password: mdpGenere,
+        email_confirm: true,
+      })
+      if (createErr || !created) {
+        return json({ error: createErr?.message ?? 'Création échouée' }, 400)
+      }
       userId = created.user.id
+      estNouveau = true
+
+      // renseigner nom/prénom dans le profil
+      await admin
+        .from('profils')
+        .update({
+          nom: nom?.trim() || null,
+          prenom: prenom?.trim() || null,
+        })
+        .eq('id', userId)
     }
 
-    // 2. Renseigner nom/prénom dans le profil (le trigger a créé la ligne)
-    await admin
-      .from('profils')
-      .update({
-        nom: nom?.trim() || null,
-        prenom: prenom?.trim() || null,
-      })
-      .eq('id', userId)
-
-    // 3. Rattacher au groupe
+    // rattacher au groupe
     const { error: membreErr } = await admin
       .from('membres')
       .insert({ groupe_id, user_id: userId, role })
     if (membreErr && !membreErr.message.includes('duplicate')) {
-      console.error('Erreur rattachement membre:', membreErr)
       return json({ error: membreErr.message }, 400)
     }
 
-    return json({ ok: true, email })
+    return json({ ok: true, email, estNouveau, mot_de_passe: estNouveau ? mdpGenere : null })
   } catch (e) {
     console.error('Exception:', e)
     return json({ error: String(e) }, 500)
   }
 })
+
+function genererMdp() {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let p = ''
+  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)]
+  return p
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
