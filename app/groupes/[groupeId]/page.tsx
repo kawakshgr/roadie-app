@@ -17,39 +17,26 @@ export default async function GroupePage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: groupe, error } = await supabase
-    .from('groupes')
-    .select('*')
-    .eq('id', groupeId)
-    .single()
+  // Toutes ces requêtes sont indépendantes → on les lance en parallèle
+  const [
+    { data: groupe, error },
+    { data: moi },
+    { data: profilMoi },
+    { data: membres },
+    { data: tournees },
+  ] = await Promise.all([
+    supabase.from('groupes').select('*').eq('id', groupeId).single(),
+    supabase.from('membres').select('role').eq('groupe_id', groupeId).eq('user_id', user.id).maybeSingle(),
+    supabase.from('profils').select('is_super_admin').eq('id', user.id).maybeSingle(),
+    supabase.from('membres').select('id, role, user_id, profils(pseudo, prenom, nom, email)').eq('groupe_id', groupeId),
+    supabase.from('tournees').select('id, nom').eq('groupe_id', groupeId),
+  ])
+
   if (error || !groupe) notFound()
 
-  const { data: moi } = await supabase
-    .from('membres')
-    .select('role')
-    .eq('groupe_id', groupeId)
-    .eq('user_id', user.id)
-    .maybeSingle()
   const isTM = moi?.role === 'tm'
-
-  const { data: profilMoi } = await supabase
-    .from('profils')
-    .select('is_super_admin')
-    .eq('id', user.id)
-    .maybeSingle()
   const isSuperAdmin = profilMoi?.is_super_admin === true
-
   const peutEditer = isTM || isSuperAdmin
-
-  const { data: membres } = await supabase
-    .from('membres')
-    .select('id, role, user_id, profils(pseudo, prenom, nom, email)')
-    .eq('groupe_id', groupeId)
-
-  const { data: tournees } = await supabase
-    .from('tournees')
-    .select('id, nom')
-    .eq('groupe_id', groupeId)
 
   return (
     <div className="wrap">

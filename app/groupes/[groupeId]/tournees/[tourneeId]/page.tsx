@@ -20,39 +20,27 @@ export default async function TourneeDatesPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: tournee, error } = await supabase
-    .from('tournees')
-    .select('nom, groupe_id')
-    .eq('id', tourneeId)
-    .single()
-  if (error || !tournee) notFound()
+  // Toutes indépendantes (on a déjà groupeId et tourneeId) → parallèle
+  const [
+    { data: tournee, error },
+    { data: moi },
+    { data: profilMoi },
+    { data: dates, error: e2 },
+  ] = await Promise.all([
+    supabase.from('tournees').select('nom, groupe_id').eq('id', tourneeId).single(),
+    supabase.from('membres').select('role').eq('groupe_id', groupeId).eq('user_id', user.id).maybeSingle(),
+    supabase.from('profils').select('is_super_admin').eq('id', user.id).maybeSingle(),
+    supabase.from('dates').select('*').eq('tournee_id', tourneeId).order('jour', { ascending: true }),
+  ])
 
-  const { data: moi } = await supabase
-    .from('membres')
-    .select('role')
-    .eq('groupe_id', groupeId)
-    .eq('user_id', user.id)
-    .maybeSingle()
+  if (error || !tournee) notFound()
+  if (e2) return <pre>{e2.message}</pre>
+
   const isTM = moi?.role === 'tm'
   const isTechnicien = moi?.role === 'technicien'
-
-  const { data: profilMoi } = await supabase
-    .from('profils')
-    .select('is_super_admin')
-    .eq('id', user.id)
-    .maybeSingle()
   const isSuperAdmin = profilMoi?.is_super_admin === true
-
   const peutEditer = isTM || isSuperAdmin
   const peutGererPJ = isTM || isTechnicien || isSuperAdmin
-
-  const { data: dates, error: e2 } = await supabase
-    .from('dates')
-    .select('*')
-    .eq('tournee_id', tourneeId)
-    .order('jour', { ascending: true })
-
-  if (e2) return <pre>{e2.message}</pre>
 
   return (
     <div className="wrap">
@@ -79,11 +67,13 @@ export default async function TourneeDatesPage({
           <AddDate tourneeId={tourneeId} />
         </div>
       )}
-      <div className="label">Documents de la tournée</div>
-      <PiecesJointes tourneeId={tourneeId} peutEditer={peutGererPJ} />
+
       <MapSection dates={dates ?? []} />
 
       <DatesLive initial={dates ?? []} tourneeId={tourneeId} peutEditer={peutEditer} />
+
+      <div className="label">Documents de la tournée</div>
+      <PiecesJointes tourneeId={tourneeId} peutEditer={peutGererPJ} />
     </div>
   )
 }

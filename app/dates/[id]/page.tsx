@@ -26,66 +26,53 @@ export default async function DayPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Vague 1 : la date (nécessaire pour connaître la tournée)
   const { data: d, error } = await supabase
     .from('dates')
     .select('*')
     .eq('id', id)
     .single()
-
   if (error || !d) notFound()
 
-  const { data: tournee } = await supabase
-    .from('tournees')
-    .select('groupe_id')
-    .eq('id', d.tournee_id)
-    .single()
+  // Vague 2 : la tournée (pour le groupe) — et en parallèle, ce qui ne dépend que de la date
+  const [
+    { data: tournee },
+    { data: invites },
+    { data: transports },
+  ] = await Promise.all([
+    supabase.from('tournees').select('groupe_id').eq('id', d.tournee_id).single(),
+    supabase.from('invitations').select('*').eq('date_id', d.id).order('created_at', { ascending: true }),
+    supabase.from('transports').select('*').eq('date_id', d.id),
+  ])
 
-let isTM = false
+  // Vague 3 : tout ce qui dépend du groupe → en parallèle
+  let isTM = false
   let isTechnicien = false
+  let isSuperAdmin = false
+  let membresListe: { user_id: string; nom: string }[] = []
+
   if (tournee) {
-    const { data: membre } = await supabase
-      .from('membres')
-      .select('role')
-      .eq('groupe_id', tournee.groupe_id)
-      .eq('user_id', user.id)
-      .maybeSingle()
+    const [
+      { data: membre },
+      { data: profilMoi },
+      { data: ms },
+    ] = await Promise.all([
+      supabase.from('membres').select('role').eq('groupe_id', tournee.groupe_id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('profils').select('is_super_admin').eq('id', user.id).maybeSingle(),
+      supabase.from('membres').select('user_id, profils(nom, prenom, email)').eq('groupe_id', tournee.groupe_id),
+    ])
     isTM = membre?.role === 'tm'
     isTechnicien = membre?.role === 'technicien'
-  }
-
-  const { data: profilMoi } = await supabase
-    .from('profils')
-    .select('is_super_admin')
-    .eq('id', user.id)
-    .maybeSingle()
-  const isSuperAdmin = profilMoi?.is_super_admin === true
-
-  const peutEditer = isTM || isSuperAdmin
-  const peutGererPJ = isTM || isTechnicien || isSuperAdmin
-
-  const { data: invites } = await supabase
-    .from('invitations')
-    .select('*')
-    .eq('date_id', d.id)
-    .order('created_at', { ascending: true })
-
-  const { data: transports } = await supabase
-    .from('transports')
-    .select('*')
-    .eq('date_id', d.id)
-
-  let membresListe: { user_id: string; nom: string }[] = []
-  if (tournee) {
-    const { data: ms } = await supabase
-      .from('membres')
-      .select('user_id, profils(nom, prenom, email)')
-      .eq('groupe_id', tournee.groupe_id)
+    isSuperAdmin = profilMoi?.is_super_admin === true
     membresListe = (ms ?? []).map((m: any) => {
       const p = m.profils
       const nom = p?.prenom && p?.nom ? `${p.prenom} ${p.nom}` : (p?.nom || p?.email || 'Membre')
       return { user_id: m.user_id, nom }
     })
   }
+
+  const peutEditer = isTM || isSuperAdmin
+  const peutGererPJ = isTM || isTechnicien || isSuperAdmin
 
   const nomDe = (uid: string) =>
     membresListe.find((m) => m.user_id === uid)?.nom ?? 'Membre'
