@@ -34,16 +34,21 @@ export default async function DayPage({
     .single()
   if (error || !d) notFound()
 
-  // Vague 2 : la tournée (pour le groupe) — et en parallèle, ce qui ne dépend que de la date
+  // Vague 2 : tournée + ce qui ne dépend que de la date + les dates de la tournée (pour le numéro)
   const [
     { data: tournee },
     { data: invites },
     { data: transports },
+    { data: datesTournee },
   ] = await Promise.all([
     supabase.from('tournees').select('groupe_id').eq('id', d.tournee_id).single(),
     supabase.from('invitations').select('*').eq('date_id', d.id).order('created_at', { ascending: true }),
     supabase.from('transports').select('*').eq('date_id', d.id),
+    supabase.from('dates').select('id, jour').eq('tournee_id', d.tournee_id).order('jour', { ascending: true }),
   ])
+
+  // numéro = position de cette date dans sa tournée (triée par date)
+  const numeroDate = (datesTournee ?? []).findIndex((x) => x.id === d.id) + 1
 
   // Vague 3 : tout ce qui dépend du groupe → en parallèle
   let isTM = false
@@ -96,7 +101,7 @@ export default async function DayPage({
 
       <div className="page-head">
         <div>
-          <div className="eyebrow">Jour {d.numero} · {fmtLong(d.jour)}</div>
+          <div className="eyebrow">Jour {numeroDate} · {fmtLong(d.jour)}</div>
           <h1>{d.ville}</h1>
           <div className="sub">{d.salle}</div>
         </div>

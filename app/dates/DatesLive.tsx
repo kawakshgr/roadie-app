@@ -16,6 +16,13 @@ export default function DatesLive({
   const [dates, setDates] = useState<TourDate[]>(initial)
   const supabase = createClient()
 
+  // recalcule les numéros selon l'ordre chronologique
+  function renumeroter(liste: TourDate[]) {
+    return [...liste]
+      .sort((a, b) => a.jour.localeCompare(b.jour))
+      .map((d, i) => ({ ...d, numero: i + 1 }))
+  }
+
   useEffect(() => {
     const channel = supabase
       .channel(`dates-${tourneeId}`)
@@ -24,16 +31,15 @@ export default function DatesLive({
         { event: '*', schema: 'public', table: 'dates', filter: `tournee_id=eq.${tourneeId}` },
         (payload) => {
           setDates((cur) => {
+            let next = cur
             if (payload.eventType === 'INSERT') {
-              return [...cur, payload.new as TourDate].sort((a, b) => a.jour.localeCompare(b.jour))
+              next = [...cur, payload.new as TourDate]
+            } else if (payload.eventType === 'UPDATE') {
+              next = cur.map((d) => (d.id === payload.new.id ? (payload.new as TourDate) : d))
+            } else if (payload.eventType === 'DELETE') {
+              next = cur.filter((d) => d.id !== payload.old.id)
             }
-            if (payload.eventType === 'UPDATE') {
-              return cur.map((d) => (d.id === payload.new.id ? (payload.new as TourDate) : d))
-            }
-            if (payload.eventType === 'DELETE') {
-              return cur.filter((d) => d.id !== payload.old.id)
-            }
-            return cur
+            return renumeroter(next)
           })
         }
       )

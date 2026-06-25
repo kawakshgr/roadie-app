@@ -20,12 +20,11 @@ export default async function TourneeDatesPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Toutes indépendantes (on a déjà groupeId et tourneeId) → parallèle
   const [
     { data: tournee, error },
     { data: moi },
     { data: profilMoi },
-    { data: dates, error: e2 },
+    { data: datesRaw, error: e2 },
   ] = await Promise.all([
     supabase.from('tournees').select('nom, groupe_id').eq('id', tourneeId).single(),
     supabase.from('membres').select('role').eq('groupe_id', groupeId).eq('user_id', user.id).maybeSingle(),
@@ -42,6 +41,9 @@ export default async function TourneeDatesPage({
   const peutEditer = isTM || isSuperAdmin
   const peutGererPJ = isTM || isTechnicien || isSuperAdmin
 
+  // numéro = position dans la tournée triée par date (recalculé, toujours juste)
+  const dates = (datesRaw ?? []).map((d, i) => ({ ...d, numero: i + 1 }))
+
   return (
     <div className="wrap">
       <Link href={`/groupes/${groupeId}/tournees`} className="back-btn glass">
@@ -53,7 +55,7 @@ export default async function TourneeDatesPage({
         <div>
           <div className="eyebrow">{tournee.nom}</div>
           <h1>Itinéraire</h1>
-          <div className="sub">{dates?.length ?? 0} date{(dates?.length ?? 0) > 1 ? 's' : ''}</div>
+          <div className="sub">{dates.length} date{dates.length > 1 ? 's' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <ThemeToggle />
@@ -68,9 +70,9 @@ export default async function TourneeDatesPage({
         </div>
       )}
 
-      <MapSection dates={dates ?? []} />
+      <MapSection dates={dates} />
 
-      <DatesLive initial={dates ?? []} tourneeId={tourneeId} peutEditer={peutEditer} />
+      <DatesLive initial={dates} tourneeId={tourneeId} peutEditer={peutEditer} />
 
       <div className="label">Documents de la tournée</div>
       <PiecesJointes tourneeId={tourneeId} peutEditer={peutGererPJ} />
