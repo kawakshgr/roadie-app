@@ -28,9 +28,11 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     )
 
+    // Qui fait la demande ?
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return json({ error: 'Non authentifié' }, 401)
 
+    // Autorisé ? (TM du groupe ou super-admin)
     const { data: membre } = await admin
       .from('membres')
       .select('role')
@@ -48,7 +50,9 @@ Deno.serve(async (req) => {
     if (!autorise) return json({ error: 'Non autorisé' }, 403)
 
     // Le compte existe-t-il déjà ?
-    const { data: list } = await admin.auth.admin.listUsers()
+    const { data: list, error: listErr } = await admin.auth.admin.listUsers()
+    if (listErr) return json({ error: 'listUsers: ' + listErr.message }, 400)
+
     const existant = list.users.find((u) => u.email === email)
 
     let userId: string
@@ -56,7 +60,7 @@ Deno.serve(async (req) => {
     let mdpGenere = ''
 
     if (existant) {
-      // compte existant : on le rattache, pas besoin de mot de passe
+      // compte existant : on le rattache
       userId = existant.id
     } else {
       // nouveau compte : mot de passe fourni ou généré
@@ -71,8 +75,15 @@ Deno.serve(async (req) => {
       }
       userId = created.user.id
       estNouveau = true
+    }
 
-      // renseigner nom/prénom dans le profil
+    // Garantir que le profil existe (le compte peut être orphelin),
+    // puis renseigner nom/prénom si fournis.
+    await admin.from('profils').upsert(
+      { id: userId, email },
+      { onConflict: 'id', ignoreDuplicates: true },
+    )
+    if (nom?.trim() || prenom?.trim()) {
       await admin
         .from('profils')
         .update({
@@ -82,7 +93,7 @@ Deno.serve(async (req) => {
         .eq('id', userId)
     }
 
-    // rattacher au groupe
+    // Rattacher au groupe
     const { error: membreErr } = await admin
       .from('membres')
       .insert({ groupe_id, user_id: userId, role })
@@ -90,7 +101,12 @@ Deno.serve(async (req) => {
       return json({ error: membreErr.message }, 400)
     }
 
-    return json({ ok: true, email, estNouveau, mot_de_passe: estNouveau ? mdpGenere : null })
+    return json({
+      ok: true,
+      email,
+      estNouveau,
+      mot_de_passe: estNouveau ? mdpGenere : null,
+    })
   } catch (e) {
     console.error('Exception:', e)
     return json({ error: String(e) }, 500)
