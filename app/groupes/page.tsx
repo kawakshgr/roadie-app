@@ -49,6 +49,9 @@ export default async function GroupesPage() {
           <div className="sub">{groupes.length} groupe{groupes.length > 1 ? 's' : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {isSuperAdmin && (
+            <a href="/admin" className="logout-btn glass" title="Administration" style={{ textDecoration: 'none' }}>⚙</a>
+          )}
           <ProfileButton />
           <ThemeToggle />
           <LogoutButton />
