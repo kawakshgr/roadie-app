@@ -103,7 +103,7 @@ export default async function DayPage({
         <div>
           <div className="eyebrow">Jour {numeroDate} · {fmtLong(d.jour)}</div>
           <h1>{d.ville}</h1>
-          <div className="sub">{d.salle}</div>
+          <div className="sub">{d.salle}{d.adresse ? ` · ${d.adresse}` : ''}</div>
         </div>
         <ThemeToggle />
       </div>
