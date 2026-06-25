@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 type Pt = {
-  id: string; numero: number; ville: string; salle: string
+  id: string; numero: number | null; ville: string; salle: string
   jour: string; lat: number; lng: number
 }
 
@@ -19,7 +19,7 @@ const COLORS: Record<string, string> = {
   future: '#0a84ff',
 }
 
-function pastille(numero: number, status: string) {
+function pastille(label: string, status: string) {
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -28,7 +28,7 @@ function pastille(numero: number, status: string) {
       border:2.5px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.4);
       display:flex;align-items:center;justify-content:center;">
       <span style="transform:rotate(45deg);color:#fff;font-weight:700;
-      font-size:13px;font-family:Inter,sans-serif;">${numero}</span>
+      font-size:13px;font-family:Inter,sans-serif;">${label}</span>
     </div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 30],
@@ -43,11 +43,14 @@ export default function TourMap({ dates }: { dates: Pt[] }) {
   return (
     <MapContainer center={center} zoom={5} style={{ height: 420, borderRadius: 18 }}>
       <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-      {pts.map((d) => (
-        <Marker key={d.id} position={[d.lat, d.lng]} icon={pastille(d.numero, statusOf(d.jour))}>
-          <Popup>{d.numero}. {d.ville} — {d.salle}</Popup>
-        </Marker>
-      ))}
+      {pts.map((d, i) => {
+        const label = d.numero != null ? String(d.numero) : d.ville.charAt(0).toUpperCase()
+        return (
+          <Marker key={d.id} position={[d.lat, d.lng]} icon={pastille(label, statusOf(d.jour))}>
+            <Popup>{d.numero != null ? `${d.numero}. ` : ''}{d.ville} — {d.salle}</Popup>
+          </Marker>
+        )
+      })}
       <Polyline
         positions={pts.map((d) => [d.lat, d.lng] as [number, number])}
         pathOptions={{ color: '#0a84ff', dashArray: '7 7' }}
