@@ -42,9 +42,10 @@ Deno.serve(async (req) => {
       const estSuperAdmin = profilMoi?.is_super_admin === true
       if (!estTM && !estSuperAdmin) return json({ error: 'Non autorisé' }, 403)
 
-      const { data: cible } = await admin
+      const { data: ciblesRows } = await admin
         .from('membres').select('role')
-        .eq('groupe_id', groupe_id).eq('user_id', user_id).maybeSingle()
+        .eq('groupe_id', groupe_id).eq('user_id', user_id)
+      const cible = ciblesRows?.[0]
       if (!cible) return json({ error: "Ce membre n'appartient pas au groupe" }, 400)
       if (cible.role === 'tm' && !estSuperAdmin) {
         return json({ error: "Tu ne peux pas réinitialiser le mot de passe d'un TM" }, 403)
