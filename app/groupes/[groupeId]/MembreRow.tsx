@@ -16,17 +16,17 @@ type Membre = {
 }
 
 export default function MembreRow({
-  membre, isTM, estMoi,
+  membre, isTM, estMoi, groupeId,
 }: {
-  membre: Membre; isTM: boolean; estMoi: boolean
+  membre: Membre; isTM: boolean; estMoi: boolean; groupeId: string
 }) {
   const [role, setRole] = useState(membre.role)
   const [busy, setBusy] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
   const supabase = createClient()
   const router = useRouter()
 
   const p = membre.profils
-  // priorité : pseudo > prénom > nom > email
   const affichage = p?.pseudo || p?.prenom || p?.nom || p?.email || 'Membre'
   const email = p?.email || ''
 
@@ -51,8 +51,20 @@ export default function MembreRow({
     else router.refresh()
   }
 
+  async function resetMotDePasse() {
+    if (!confirm(`Réinitialiser le mot de passe de ${affichage} ?`)) return
+    setBusy(true); setResetMsg('')
+    const { data, error } = await supabase.functions.invoke('inviter-membre', {
+      body: { action: 'reset_membre', user_id: membre.user_id, groupe_id: groupeId },
+    })
+    setBusy(false)
+    if (error) { setResetMsg('Erreur : ' + error.message); return }
+    if (data?.error) { setResetMsg('Erreur : ' + data.error); return }
+    setResetMsg(`Nouveau mot de passe : ${data.mot_de_passe}`)
+  }
+
   return (
-    <div className="guest glass">
+    <div className="guest glass" style={{ flexWrap: 'wrap' }}>
       <div className="membre-avatar">{affichage.charAt(0).toUpperCase()}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="gname">{affichage}{estMoi && ' (toi)'}</div>
@@ -61,6 +73,9 @@ export default function MembreRow({
 
       {isTM && !estMoi ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {role !== 'tm' && (
+            <button className="membre-remove" onClick={resetMotDePasse} disabled={busy} title="Réinitialiser le mot de passe" style={{ color: 'var(--accent)' }}>🔑</button>
+          )}
           <select
             className="role-select"
             value={role}
@@ -77,6 +92,12 @@ export default function MembreRow({
         <span className="pill ok" style={{ background: 'var(--glass)', color: 'var(--ink-dim)' }}>
           {role === 'tm' ? 'Tour Manager' : role === 'artiste' ? 'Artiste' : 'Technicien'}
         </span>
+      )}
+
+      {resetMsg && (
+        <div style={{ flexBasis: '100%', marginTop: 8, fontSize: 13, color: resetMsg.startsWith('Erreur') ? 'var(--red)' : 'var(--green)' }}>
+          {resetMsg}
+        </div>
       )}
     </div>
   )

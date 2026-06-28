@@ -72,6 +72,7 @@ export default async function GroupePage({
           membre={m as any}
           isTM={peutEditer}
           estMoi={m.user_id === user.id}
+          groupeId={groupeId}
         />
       ))}
     </div>

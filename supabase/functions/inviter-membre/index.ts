@@ -10,11 +10,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   try {
-    const { email, groupe_id, role, mot_de_passe, nom, prenom } = await req.json()
-
-    if (!email || !groupe_id || !role) {
-      return json({ error: 'Champs manquants' }, 400)
-    }
+    const body = await req.json()
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -31,6 +27,43 @@ Deno.serve(async (req) => {
     // Qui fait la demande ?
     const { data: { user }, error: userErr } = await userClient.auth.getUser()
     if (userErr || !user) return json({ error: 'Non authentifié' }, 401)
+
+    // ====== Action : reset de mot de passe par un TM ======
+    if (body.action === 'reset_membre') {
+      const { user_id, groupe_id } = body
+      if (!user_id || !groupe_id) return json({ error: 'Champs manquants' }, 400)
+
+      const { data: moi } = await admin
+        .from('membres').select('role')
+        .eq('groupe_id', groupe_id).eq('user_id', user.id).maybeSingle()
+      const { data: profilMoi } = await admin
+        .from('profils').select('is_super_admin').eq('id', user.id).maybeSingle()
+      const estTM = moi?.role === 'tm'
+      const estSuperAdmin = profilMoi?.is_super_admin === true
+      if (!estTM && !estSuperAdmin) return json({ error: 'Non autorisé' }, 403)
+
+      const { data: cible } = await admin
+        .from('membres').select('role')
+        .eq('groupe_id', groupe_id).eq('user_id', user_id).maybeSingle()
+      if (!cible) return json({ error: "Ce membre n'appartient pas au groupe" }, 400)
+      if (cible.role === 'tm' && !estSuperAdmin) {
+        return json({ error: "Tu ne peux pas réinitialiser le mot de passe d'un TM" }, 403)
+      }
+
+      const nouveau = genererMdp()
+      const { error: upErr } = await admin.auth.admin.updateUserById(user_id, { password: nouveau })
+      if (upErr) return json({ error: upErr.message }, 400)
+
+      return json({ ok: true, mot_de_passe: nouveau })
+    }
+    // ====== fin action reset ======
+
+    // ====== Action par défaut : ajouter / créer un membre ======
+    const { email, groupe_id, role, mot_de_passe, nom, prenom } = body
+
+    if (!email || !groupe_id || !role) {
+      return json({ error: 'Champs manquants' }, 400)
+    }
 
     // Autorisé ? (TM du groupe ou super-admin)
     const { data: membre } = await admin
@@ -60,10 +93,8 @@ Deno.serve(async (req) => {
     let mdpGenere = ''
 
     if (existant) {
-      // compte existant : on le rattache
       userId = existant.id
     } else {
-      // nouveau compte : mot de passe fourni ou généré
       mdpGenere = mot_de_passe?.trim() || genererMdp()
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
@@ -77,8 +108,7 @@ Deno.serve(async (req) => {
       estNouveau = true
     }
 
-    // Garantir que le profil existe (le compte peut être orphelin),
-    // puis renseigner nom/prénom si fournis.
+    // Garantir que le profil existe (compte orphelin possible), puis nom/prénom
     await admin.from('profils').upsert(
       { id: userId, email },
       { onConflict: 'id', ignoreDuplicates: true },
