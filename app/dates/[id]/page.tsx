@@ -163,7 +163,7 @@ export default async function DayPage({
       <PiecesJointes dateId={d.id} peutEditer={peutGererPJ} />
 
       <div className="label">Invitations</div>
-      <InviteList dateId={d.id} initial={invites ?? []} isTM={peutEditer} />
+     <InviteList dateId={d.id} initial={invites ?? []} isTM={peutEditer} ville={d.ville} jour={d.jour} />
       <InviteForm dateId={d.id} />
     </div>
   )

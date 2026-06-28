@@ -14,9 +14,9 @@ const PILL: Record<string, { txt: string; cls: string }> = {
 }
 
 export default function InviteList({
-  dateId, initial, isTM,
+  dateId, initial, isTM, ville, jour,
 }: {
-  dateId: string; initial: Invite[]; isTM: boolean
+  dateId: string; initial: Invite[]; isTM: boolean; ville?: string; jour?: string
 }) {
   const [invites, setInvites] = useState<Invite[]>(initial)
   const supabase = createClient()
@@ -43,8 +43,30 @@ export default function InviteList({
   async function decider(id: string, statut: 'validee' | 'refusee') {
     const { error } = await supabase.from('invitations').update({ statut }).eq('id', id)
     if (error) alert(error.message)
-    // pas besoin de setInvites : le realtime renvoie l'UPDATE
   }
+
+  function exporterCSV() {
+    const valides = invites.filter((i) => i.statut === 'validee')
+    if (!valides.length) { alert('Aucun invité validé à exporter.'); return }
+
+    const echap = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const entetes = ['Nom', 'Type de place', 'Accès', 'Statut']
+    const lignes = valides.map((i) =>
+      [i.nom_invite, i.type_place, i.acces, 'Validée'].map(echap).join(',')
+    )
+    const contenu = [entetes.join(','), ...lignes].join('\n')
+
+    const blob = new Blob(['\uFEFF' + contenu], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const suffixe = [ville, jour].filter(Boolean).join('_').replace(/\s+/g, '-') || 'guestlist'
+    a.href = url
+    a.download = `guestlist_${suffixe}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const nbValides = invites.filter((i) => i.statut === 'validee').length
 
   if (!invites.length) return <p style={{ color: 'var(--ink-dim)', fontSize: 14, margin: '8px' }}>Aucune invitation.</p>
 
@@ -65,12 +87,18 @@ export default function InviteList({
           </div>
           {isTM && i.statut === 'en_attente' && (
             <div className="approve-actions">
-              <button className="btn-ok" onClick={() => decider(i.id, 'validee')}>✓ Valider</button>
-              <button className="btn-no" onClick={() => decider(i.id, 'refusee')}>✕ Refuser</button>
+              <button className="btn-approve ok" onClick={() => decider(i.id, 'validee')}>✓ Valider</button>
+              <button className="btn-approve no" onClick={() => decider(i.id, 'refusee')}>✕ Refuser</button>
             </div>
           )}
         </div>
       ))}
+
+      {isTM && nbValides > 0 && (
+        <button className="import-btn glass" onClick={exporterCSV} style={{ marginTop: 12 }}>
+          ⬇ Exporter la guestlist ({nbValides})
+        </button>
+      )}
     </div>
   )
 }

@@ -512,3 +512,31 @@ body {
 }
 .autocomplete-item:last-child { border-bottom: none; }
 .autocomplete-item:hover { background: var(--glass-hi); }
+/* ===== Boutons valider / refuser une invitation ===== */
+.approve-actions {
+  display: flex; gap: 8px; margin: 6px 0 12px; padding: 0 2px;
+}
+.btn-approve {
+  flex: 1; padding: 10px 14px; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--glass-border);
+  position: relative; overflow: hidden;
+  transition: transform .15s cubic-bezier(.32,.72,0,1), box-shadow .3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-approve::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.2) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .6s cubic-bezier(.32,.72,0,1);
+}
+.btn-approve:hover::before { transform: translateX(120%); }
+.btn-approve:active { transform: scale(.97); }
+.btn-approve.ok {
+  background: rgba(48,209,88,.15); color: var(--green);
+}
+.btn-approve.ok:hover { box-shadow: 0 4px 16px rgba(48,209,88,.2); }
+.btn-approve.no {
+  background: rgba(255,69,58,.12); color: var(--red);
+}
+.btn-approve.no:hover { box-shadow: 0 4px 16px rgba(255,69,58,.2); }
