@@ -130,19 +130,24 @@ export default async function DayPage({
             <div style={{ flex: 1 }}>
               <div className="h">{d.hebergement.hotel}</div>
               {d.hebergement.adresse && <div className="d">{d.hebergement.adresse}</div>}
-              <div className="d">
-                {[
-                  d.hebergement.nb_chambres ? `${d.hebergement.nb_chambres} chambre${d.hebergement.nb_chambres > 1 ? 's' : ''}` : null,
-                  d.hebergement.type_chambre || null,
-                  d.hebergement.reservation ? `Réf : ${d.hebergement.reservation}` : null,
-                ].filter(Boolean).join(' · ')}
-              </div>
+              {Array.isArray(d.hebergement.chambres) && d.hebergement.chambres.length > 0 && (
+                <div className="d">
+                  {d.hebergement.chambres
+                    .map((c: any) => `${c.nombre ?? ''} ${c.type}`.trim())
+                    .join(' · ')}
+                </div>
+              )}
+              {d.hebergement.reservation && (
+                <div className="d">Réf : {d.hebergement.reservation}</div>
+              )}
               <div className="d" style={{ marginTop: 2 }}>
                 {d.hebergement.parking_van && <span>🚐 Parking van</span>}
                 {d.hebergement.parking_van && d.hebergement.petit_dej && <span> · </span>}
                 {d.hebergement.petit_dej && <span>🥐 Petit-déj inclus</span>}
               </div>
-              {d.hebergement.note && <div className="d" style={{ marginTop: 2, fontStyle: 'italic' }}>{d.hebergement.note}</div>}
+              {d.hebergement.note && (
+                <div className="d" style={{ marginTop: 2, fontStyle: 'italic' }}>{d.hebergement.note}</div>
+              )}
             </div>
           </div>
         </>

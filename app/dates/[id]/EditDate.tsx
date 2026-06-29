@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import PaysSelect from '../PaysSelect'
 import LieuAutocomplete from '../LieuAutocomplete'
 
+type Chambre = { nombre: string; type: string; autre: string }
+
 type DateData = {
   id: string
   ville: string
@@ -18,12 +20,27 @@ type DateData = {
   hebergement: Record<string, any> | null
 }
 
+const TYPES_CHAMBRE = ['Single', 'Twin', 'Double', 'Triple', 'Suite', 'Appartement', 'Autre']
+
 export default function EditDate({ d }: { d: DateData }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const h = d.horaires ?? {}
   const heb = d.hebergement ?? {}
+
+  // reconstruit la liste de chambres depuis le JSON (ou une ligne vide)
+  const chambresInit: Chambre[] = Array.isArray(heb.chambres) && heb.chambres.length
+    ? heb.chambres.map((c: any) => {
+        const estConnu = TYPES_CHAMBRE.includes(c.type)
+        return {
+          nombre: c.nombre != null ? String(c.nombre) : '',
+          type: estConnu ? c.type : 'Autre',
+          autre: estConnu ? '' : (c.type ?? ''),
+        }
+      })
+    : [{ nombre: '', type: 'Single', autre: '' }]
+
   const [f, setF] = useState({
     recherche: '',
     ville: d.ville ?? '',
@@ -38,17 +55,15 @@ export default function EditDate({ d }: { d: DateData }) {
     doors: h.doors ?? '',
     set: h.set ?? '',
     curfew: h.curfew ?? '',
-    // hébergement
     hotelRecherche: '',
     hotel: heb.hotel ?? '',
     hotelAdresse: heb.adresse ?? '',
-    nbChambres: heb.nb_chambres != null ? String(heb.nb_chambres) : '',
-    typeChambre: heb.type_chambre ?? '',
     reservation: heb.reservation ?? '',
     parkingVan: heb.parking_van === true,
     petitDej: heb.petit_dej === true,
     noteHotel: heb.note ?? '',
   })
+  const [chambres, setChambres] = useState<Chambre[]>(chambresInit)
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const supabase = createClient()
   const router = useRouter()
@@ -57,9 +72,28 @@ export default function EditDate({ d }: { d: DateData }) {
     setF((cur) => ({ ...cur, [k]: v }))
   }
 
+  function setChambre(i: number, k: keyof Chambre, v: string) {
+    setChambres((cur) => cur.map((c, idx) => (idx === i ? { ...c, [k]: v } : c)))
+  }
+  function ajouterChambre() {
+    setChambres((cur) => [...cur, { nombre: '', type: 'Single', autre: '' }])
+  }
+  function retirerChambre(i: number) {
+    setChambres((cur) => cur.filter((_, idx) => idx !== i))
+  }
+
   async function enregistrer() {
     if (!f.ville.trim() || !f.jour) { setMsg('Ville et date obligatoires'); return }
     setBusy(true); setMsg('')
+
+    // chambres → JSON, en gardant seulement les lignes remplies
+    const chambresJSON = chambres
+      .filter((c) => c.nombre || c.type)
+      .map((c) => ({
+        nombre: c.nombre ? parseInt(c.nombre) : null,
+        type: c.type === 'Autre' ? c.autre.trim() : c.type,
+      }))
+      .filter((c) => c.type)
 
     const maj: any = {
       ville: f.ville.trim(),
@@ -76,8 +110,7 @@ export default function EditDate({ d }: { d: DateData }) {
       hebergement: {
         hotel: f.hotel.trim() || null,
         adresse: f.hotelAdresse.trim() || null,
-        nb_chambres: f.nbChambres ? parseInt(f.nbChambres) : null,
-        type_chambre: f.typeChambre.trim() || null,
+        chambres: chambresJSON,
         reservation: f.reservation.trim() || null,
         parking_van: f.parkingVan,
         petit_dej: f.petitDej,
@@ -172,10 +205,48 @@ export default function EditDate({ d }: { d: DateData }) {
               <input className="login-input" placeholder="Ex : Ibis Centre" value={f.hotel} onChange={(e) => set('hotel', e.target.value)} />
               <div style={labelStyle}>Adresse de l'hôtel</div>
               <input className="login-input" placeholder="Adresse" value={f.hotelAdresse} onChange={(e) => set('hotelAdresse', e.target.value)} />
-              <div className="add-times">
-                <div><div style={labelStyle}>Nombre de chambres</div><input className="login-input" type="number" placeholder="Ex : 5" value={f.nbChambres} onChange={(e) => set('nbChambres', e.target.value)} /></div>
-                <div><div style={labelStyle}>Type de chambre</div><input className="login-input" placeholder="Ex : Twin, Single" value={f.typeChambre} onChange={(e) => set('typeChambre', e.target.value)} /></div>
-              </div>
+
+              <div style={labelStyle}>Chambres</div>
+              {chambres.map((c, i) => (
+                <div key={i} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      className="login-input"
+                      type="number"
+                      placeholder="Nb"
+                      value={c.nombre}
+                      onChange={(e) => setChambre(i, 'nombre', e.target.value)}
+                      style={{ width: 70, flexShrink: 0, marginBottom: 0 }}
+                    />
+                    <select
+                      className="login-input"
+                      value={c.type}
+                      onChange={(e) => setChambre(i, 'type', e.target.value)}
+                      style={{ flex: 1, marginBottom: 0 }}
+                    >
+                      {TYPES_CHAMBRE.map((t) => (
+                        <option key={t} value={t}>{t === 'Autre' ? 'Autre…' : t}</option>
+                      ))}
+                    </select>
+                    {chambres.length > 1 && (
+                      <button className="membre-remove" onClick={() => retirerChambre(i)} type="button" style={{ flexShrink: 0 }}>×</button>
+                    )}
+                  </div>
+                  {c.type === 'Autre' && (
+                    <input
+                      className="login-input"
+                      placeholder="Précise le type (ex : Appartement entier, Loge…)"
+                      value={c.autre}
+                      onChange={(e) => setChambre(i, 'autre', e.target.value)}
+                      style={{ marginTop: 8 }}
+                    />
+                  )}
+                </div>
+              ))}
+              <button className="btn-ghost" onClick={ajouterChambre} type="button" style={{ marginBottom: 4 }}>
+                + Ajouter un type de chambre
+              </button>
+
               <div style={labelStyle}>N° de réservation</div>
               <input className="login-input" placeholder="Référence de réservation" value={f.reservation} onChange={(e) => set('reservation', e.target.value)} />
 
