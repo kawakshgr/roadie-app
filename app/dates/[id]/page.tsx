@@ -122,20 +122,32 @@ export default async function DayPage({
           <div className="row"><span className="ev" style={{ color: 'var(--ink-dim)' }}>Aucun horaire renseigné</span></div>
         )}
       </div>
-
-      {d.hebergement?.hotel && (
+{d.hebergement?.hotel && (
         <>
-          <div className="label">Logistique</div>
+          <div className="label">Hébergement</div>
           <div className="card glass">
             <div className="ic">🛏</div>
             <div style={{ flex: 1 }}>
               <div className="h">{d.hebergement.hotel}</div>
-              <div className="d">{d.hebergement.adresse ?? ''}</div>
+              {d.hebergement.adresse && <div className="d">{d.hebergement.adresse}</div>}
+              <div className="d">
+                {[
+                  d.hebergement.nb_chambres ? `${d.hebergement.nb_chambres} chambre${d.hebergement.nb_chambres > 1 ? 's' : ''}` : null,
+                  d.hebergement.type_chambre || null,
+                  d.hebergement.reservation ? `Réf : ${d.hebergement.reservation}` : null,
+                ].filter(Boolean).join(' · ')}
+              </div>
+              <div className="d" style={{ marginTop: 2 }}>
+                {d.hebergement.parking_van && <span>🚐 Parking van</span>}
+                {d.hebergement.parking_van && d.hebergement.petit_dej && <span> · </span>}
+                {d.hebergement.petit_dej && <span>🥐 Petit-déj inclus</span>}
+              </div>
+              {d.hebergement.note && <div className="d" style={{ marginTop: 2, fontStyle: 'italic' }}>{d.hebergement.note}</div>}
             </div>
           </div>
         </>
       )}
-
+    
       <div className="label">Transport</div>
       {(d.km_prochaine || d.depart_hotel) && (
         <div className="card glass">
