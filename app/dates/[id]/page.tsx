@@ -8,6 +8,7 @@ import TransportForm from './TransportForm'
 import TransportItem from './TransportItem'
 import EditDate from './EditDate'
 import PiecesJointes from '../PiecesJointes'
+import Contacts from '../Contacts'
 
 function fmtLong(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', {
@@ -206,6 +207,8 @@ export default async function DayPage({
       )}
 
       {peutEditer && <TransportForm dateId={d.id} membres={membresListe} />}
+      <div className="label">Contacts du jour</div>
+      <Contacts dateId={d.id} peutEditer={peutEditer} />
 
       <div className="label">Pièces jointes</div>
       <PiecesJointes dateId={d.id} peutEditer={peutGererPJ} />

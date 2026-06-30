@@ -8,6 +8,7 @@ import MapSection from '../../../../dates/MapSection'
 import ImportCSV from '../../../../dates/ImportCSV'
 import AddDate from '../../../../dates/AddDate'
 import PiecesJointes from '../../../../dates/PiecesJointes'
+import Contacts from '../../../../dates/Contacts'
 
 export default async function TourneeDatesPage({
   params,
@@ -76,6 +77,8 @@ export default async function TourneeDatesPage({
 
       <div className="label">Documents de la tournée</div>
       <PiecesJointes tourneeId={tourneeId} peutEditer={peutGererPJ} />
+      <div className="label">Contacts de la tournée</div>
+      <Contacts tourneeId={tourneeId} peutEditer={peutEditer} />
     </div>
   )
 }
