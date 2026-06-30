@@ -42,7 +42,7 @@ export default async function DayPage({
     { data: transports },
     { data: datesTournee },
   ] = await Promise.all([
-    supabase.from('tournees').select('groupe_id').eq('id', d.tournee_id).single(),
+    supabase.from('tournees').select('groupe_id, groupes(nom)').eq('id', d.tournee_id).single(),
     supabase.from('invitations').select('*').eq('date_id', d.id).order('created_at', { ascending: true }),
     supabase.from('transports').select('*').eq('date_id', d.id),
     supabase.from('dates').select('id, jour').eq('tournee_id', d.tournee_id).order('jour', { ascending: true }),
@@ -214,7 +214,7 @@ export default async function DayPage({
       <PiecesJointes dateId={d.id} peutEditer={peutGererPJ} />
 
       <div className="label">Invitations</div>
-     <InviteList dateId={d.id} initial={invites ?? []} isTM={peutEditer} ville={d.ville} jour={d.jour} />
+     <InviteList dateId={d.id} initial={invites ?? []} isTM={peutEditer} ville={d.ville} jour={d.jour} groupe={(tournee as any)?.groupes?.nom} />
       <InviteForm dateId={d.id} />
     </div>
   )

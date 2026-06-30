@@ -14,9 +14,9 @@ const PILL: Record<string, { txt: string; cls: string }> = {
 }
 
 export default function InviteList({
-  dateId, initial, isTM, ville, jour,
+  dateId, initial, isTM, ville, jour, groupe,
 }: {
-  dateId: string; initial: Invite[]; isTM: boolean; ville?: string; jour?: string
+  dateId: string; initial: Invite[]; isTM: boolean; ville?: string; jour?: string; groupe?: string
 }) {
   const [invites, setInvites] = useState<Invite[]>(initial)
   const supabase = createClient()
@@ -59,7 +59,7 @@ export default function InviteList({
     const blob = new Blob(['\uFEFF' + contenu], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    const suffixe = [ville, jour].filter(Boolean).join('_').replace(/\s+/g, '-') || 'guestlist'
+    const suffixe = [groupe, ville, jour].filter(Boolean).join('_').replace(/\s+/g, '-') || 'guestlist'
     a.href = url
     a.download = `guestlist_${suffixe}.csv`
     a.click()
