@@ -107,6 +107,7 @@ export default async function DayPage({
     ['Doors', fmtHoraire(h.doors)],
     ['Set', fmtHoraire(h.set)],
     ['Curfew', fmtHoraire(h.curfew)],
+    ['Bus call', fmtHoraire(h.bus_call)],
   ].filter(([, v]) => v) as [string, string][]
 
   const retour = tournee

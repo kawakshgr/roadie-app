@@ -73,6 +73,7 @@ export default function EditDate({ d }: { d: DateData }) {
     doors: lireSimple(h.doors),
     setDebut: setH.debut, setFin: setH.fin,
     curfew: lireSimple(h.curfew),
+    bus_call: lireSimple(h.bus_call),
     remarques: d.remarques ?? '',
     hotelRecherche: '',
     hotel: heb.hotel ?? '',
@@ -127,6 +128,7 @@ export default function EditDate({ d }: { d: DateData }) {
         doors: f.doors,
         set: { debut: f.setDebut, fin: f.setFin },
         curfew: f.curfew,
+        bus_call: f.bus_call,
       },
       remarques: f.remarques.trim() || null,
       hebergement: {
@@ -208,6 +210,7 @@ export default function EditDate({ d }: { d: DateData }) {
                 <div><div style={labelStyle}>Repas</div><input className="login-input" type="time" value={f.repas} onChange={(e) => set('repas', e.target.value)} /></div>
                 <div><div style={labelStyle}>Doors</div><input className="login-input" type="time" value={f.doors} onChange={(e) => set('doors', e.target.value)} /></div>
                 <div><div style={labelStyle}>Curfew</div><input className="login-input" type="time" value={f.curfew} onChange={(e) => set('curfew', e.target.value)} /></div>
+                <div><div style={labelStyle}>Bus call</div><input className="login-input" type="time" value={f.bus_call} onChange={(e) => set('bus_call', e.target.value)} /></div>
               </div>
 
               <div style={sectionStyle}>Remarques</div>
