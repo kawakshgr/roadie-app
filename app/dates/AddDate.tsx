@@ -4,14 +4,20 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PaysSelect from './PaysSelect'
 import LieuAutocomplete from './LieuAutocomplete'
+import PlageHoraire from './PlageHoraire'
 
 export default function AddDate({ tourneeId }: { tourneeId: string }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [f, setF] = useState({
-    recherche: '', ville: '', salle: '', pays: '', adresse: '', jour: '',
-    load: '', soundcheck: '', doors: '', set: '', curfew: '',
+    ville: '', salle: '', pays: '', adresse: '', jour: '',
+    loadDebut: '', loadFin: '',
+    scDebut: '', scFin: '',
+    repas: '', doors: '',
+    setDebut: '', setFin: '',
+    curfew: '',
+    remarques: '',
   })
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
   const supabase = createClient()
@@ -30,7 +36,6 @@ export default function AddDate({ tourneeId }: { tourneeId: string }) {
 
     let lat = coords?.lat ?? null
     let lng = coords?.lng ?? null
-
     if (lat == null || lng == null) {
       setMsg('Géocodage…')
       try {
@@ -39,7 +44,7 @@ export default function AddDate({ tourneeId }: { tourneeId: string }) {
         })
         const c = data?.results?.[`${f.ville}, ${f.pays}`]
         if (c) { lat = c.lat; lng = c.lng }
-      } catch { /* insertion sans coords */ }
+      } catch { /* sans coords */ }
     }
 
     setMsg('Ajout…')
@@ -53,15 +58,20 @@ export default function AddDate({ tourneeId }: { tourneeId: string }) {
       lat,
       lng,
       horaires: {
-        load: f.load, soundcheck: f.soundcheck,
-        doors: f.doors, set: f.set, curfew: f.curfew,
+        load: { debut: f.loadDebut, fin: f.loadFin },
+        soundcheck: { debut: f.scDebut, fin: f.scFin },
+        repas: f.repas,
+        doors: f.doors,
+        set: { debut: f.setDebut, fin: f.setFin },
+        curfew: f.curfew,
       },
+      remarques: f.remarques.trim() || null,
     })
     setBusy(false)
 
     if (error) { setMsg('Erreur : ' + error.message); return }
     setMsg('✓ Date ajoutée')
-    setF({ recherche: '', ville: '', salle: '', pays: '', adresse: '', jour: '', load: '', soundcheck: '', doors: '', set: '', curfew: '' })
+    setF({ ville: '', salle: '', pays: '', adresse: '', jour: '', loadDebut: '', loadFin: '', scDebut: '', scFin: '', repas: '', doors: '', setDebut: '', setFin: '', curfew: '', remarques: '' })
     setCoords(null)
     router.refresh()
     setTimeout(() => { setOpen(false); setMsg('') }, 1000)
@@ -87,12 +97,11 @@ export default function AddDate({ tourneeId }: { tourneeId: string }) {
 
               <div style={labelStyle}>Rechercher une salle ou une ville</div>
               <LieuAutocomplete
-                valeur={f.recherche}
-                onValeurChange={(v) => { set('recherche', v); setCoords(null) }}
+                valeur={f.salle || f.ville}
+                onValeurChange={(v) => { set('salle', v); setCoords(null) }}
                 onSelect={(l) => {
                   setF((cur) => ({
                     ...cur,
-                    recherche: l.salle || l.ville,
                     salle: l.salle || cur.salle,
                     ville: l.ville || cur.ville,
                     pays: l.pays || cur.pays,
@@ -103,42 +112,34 @@ export default function AddDate({ tourneeId }: { tourneeId: string }) {
               />
 
               <div style={sectionStyle}>Détails du lieu</div>
-
               <div style={labelStyle}>Ville *</div>
               <input className="login-input" placeholder="Ex : Paris" value={f.ville} onChange={(e) => set('ville', e.target.value)} />
-
               <div style={labelStyle}>Salle</div>
               <input className="login-input" placeholder="Ex : Olympia" value={f.salle} onChange={(e) => set('salle', e.target.value)} />
-
               <div style={labelStyle}>Adresse</div>
-              <input className="login-input" placeholder="Ex : 28 Bd des Capucines, 75009 Paris" value={f.adresse} onChange={(e) => set('adresse', e.target.value)} />
-
+              <input className="login-input" placeholder="Adresse de la salle" value={f.adresse} onChange={(e) => set('adresse', e.target.value)} />
               <div style={labelStyle}>Pays</div>
               <PaysSelect value={f.pays} onChange={(code) => set('pays', code)} />
 
               <div style={sectionStyle}>Horaires de la journée</div>
+              <PlageHoraire label="Load-in" debut={f.loadDebut} fin={f.loadFin} onDebut={(v) => set('loadDebut', v)} onFin={(v) => set('loadFin', v)} />
+              <PlageHoraire label="Soundcheck" debut={f.scDebut} fin={f.scFin} onDebut={(v) => set('scDebut', v)} onFin={(v) => set('scFin', v)} />
+              <PlageHoraire label="Set" debut={f.setDebut} fin={f.setFin} onDebut={(v) => set('setDebut', v)} onFin={(v) => set('setFin', v)} />
               <div className="add-times">
-                <div>
-                  <div style={labelStyle}>Load-in</div>
-                  <input className="login-input" type="time" value={f.load} onChange={(e) => set('load', e.target.value)} />
-                </div>
-                <div>
-                  <div style={labelStyle}>Soundcheck</div>
-                  <input className="login-input" type="time" value={f.soundcheck} onChange={(e) => set('soundcheck', e.target.value)} />
-                </div>
-                <div>
-                  <div style={labelStyle}>Doors</div>
-                  <input className="login-input" type="time" value={f.doors} onChange={(e) => set('doors', e.target.value)} />
-                </div>
-                <div>
-                  <div style={labelStyle}>Set</div>
-                  <input className="login-input" type="time" value={f.set} onChange={(e) => set('set', e.target.value)} />
-                </div>
-                <div>
-                  <div style={labelStyle}>Curfew</div>
-                  <input className="login-input" type="time" value={f.curfew} onChange={(e) => set('curfew', e.target.value)} />
-                </div>
+                <div><div style={labelStyle}>Repas</div><input className="login-input" type="time" value={f.repas} onChange={(e) => set('repas', e.target.value)} /></div>
+                <div><div style={labelStyle}>Doors</div><input className="login-input" type="time" value={f.doors} onChange={(e) => set('doors', e.target.value)} /></div>
+                <div><div style={labelStyle}>Curfew</div><input className="login-input" type="time" value={f.curfew} onChange={(e) => set('curfew', e.target.value)} /></div>
               </div>
+
+              <div style={sectionStyle}>Remarques</div>
+              <textarea
+                className="login-input"
+                placeholder="Particularités du jour (ex : Pas de VP ce soir…)"
+                value={f.remarques}
+                onChange={(e) => set('remarques', e.target.value)}
+                rows={3}
+                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              />
 
               {msg && <p style={{ fontSize: 14, marginTop: 12, color: msg.startsWith('✓') ? 'var(--green)' : msg.startsWith('Erreur') ? 'var(--red)' : 'var(--ink-dim)' }}>{msg}</p>}
             </div>

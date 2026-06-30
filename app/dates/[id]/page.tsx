@@ -83,9 +83,30 @@ export default async function DayPage({
     membresListe.find((m) => m.user_id === uid)?.nom ?? 'Membre'
 
   const h = d.horaires ?? {}
+
+  // un horaire peut être une chaîne (ancien/simple) ou {debut, fin} (plage)
+  function fmtHoraire(v: any): string {
+    if (!v) return ''
+    if (typeof v === 'string') return v
+    if (v.debut && v.fin) {
+      const [hd, md] = v.debut.split(':').map(Number)
+      const [hf, mf] = v.fin.split(':').map(Number)
+      let mins = (hf * 60 + mf) - (hd * 60 + md)
+      if (mins < 0) mins += 24 * 60
+      const dh = Math.floor(mins / 60), dm = mins % 60
+      const duree = dh === 0 ? `${dm} min` : dm === 0 ? `${dh}h` : `${dh}h${String(dm).padStart(2, '0')}`
+      return `${v.debut} → ${v.fin} (${duree})`
+    }
+    return v.debut || v.fin || ''
+  }
+
   const lignes: [string, string][] = [
-    ['Load-in', h.load], ['Soundcheck', h.soundcheck],
-    ['Doors', h.doors], ['Set', h.set], ['Curfew', h.curfew],
+    ['Load-in', fmtHoraire(h.load)],
+    ['Soundcheck', fmtHoraire(h.soundcheck)],
+    ['Repas', fmtHoraire(h.repas)],
+    ['Doors', fmtHoraire(h.doors)],
+    ['Set', fmtHoraire(h.set)],
+    ['Curfew', fmtHoraire(h.curfew)],
   ].filter(([, v]) => v) as [string, string][]
 
   const retour = tournee
@@ -137,6 +158,15 @@ export default async function DayPage({
                     .join(' · ')}
                 </div>
               )}
+              {d.remarques && (
+        <>
+          <div className="label">Remarques</div>
+          <div className="card glass">
+            <div className="ic">📝</div>
+            <div style={{ flex: 1, whiteSpace: 'pre-wrap' }}>{d.remarques}</div>
+          </div>
+        </>
+      )}
               {d.hebergement.reservation && (
                 <div className="d">Réf : {d.hebergement.reservation}</div>
               )}

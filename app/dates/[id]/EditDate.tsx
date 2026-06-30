@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PaysSelect from '../PaysSelect'
 import LieuAutocomplete from '../LieuAutocomplete'
+import PlageHoraire from '../PlageHoraire'
 
 type Chambre = { nombre: string; type: string; autre: string }
 
@@ -16,11 +17,24 @@ type DateData = {
   jour: string
   km_prochaine: number | null
   depart_hotel: string | null
-  horaires: Record<string, string> | null
+  horaires: Record<string, any> | null
   hebergement: Record<string, any> | null
+  remarques: string | null
 }
 
 const TYPES_CHAMBRE = ['Single', 'Twin', 'Double', 'Triple', 'Suite', 'Appartement', 'Autre']
+
+// lit un horaire qui peut être une chaîne (ancien format) ou {debut, fin} (nouveau)
+function lirePlage(v: any): { debut: string; fin: string } {
+  if (v && typeof v === 'object') return { debut: v.debut ?? '', fin: v.fin ?? '' }
+  if (typeof v === 'string') return { debut: v, fin: '' } // ancien format → on met l'heure en début
+  return { debut: '', fin: '' }
+}
+function lireSimple(v: any): string {
+  if (typeof v === 'string') return v
+  if (v && typeof v === 'object') return v.debut ?? '' // au cas où
+  return ''
+}
 
 export default function EditDate({ d }: { d: DateData }) {
   const [open, setOpen] = useState(false)
@@ -29,7 +43,10 @@ export default function EditDate({ d }: { d: DateData }) {
   const h = d.horaires ?? {}
   const heb = d.hebergement ?? {}
 
-  // reconstruit la liste de chambres depuis le JSON (ou une ligne vide)
+  const load = lirePlage(h.load)
+  const sc = lirePlage(h.soundcheck)
+  const setH = lirePlage(h.set)
+
   const chambresInit: Chambre[] = Array.isArray(heb.chambres) && heb.chambres.length
     ? heb.chambres.map((c: any) => {
         const estConnu = TYPES_CHAMBRE.includes(c.type)
@@ -50,11 +67,13 @@ export default function EditDate({ d }: { d: DateData }) {
     jour: d.jour ?? '',
     km_prochaine: d.km_prochaine != null ? String(d.km_prochaine) : '',
     depart_hotel: d.depart_hotel ?? '',
-    load: h.load ?? '',
-    soundcheck: h.soundcheck ?? '',
-    doors: h.doors ?? '',
-    set: h.set ?? '',
-    curfew: h.curfew ?? '',
+    loadDebut: load.debut, loadFin: load.fin,
+    scDebut: sc.debut, scFin: sc.fin,
+    repas: lireSimple(h.repas),
+    doors: lireSimple(h.doors),
+    setDebut: setH.debut, setFin: setH.fin,
+    curfew: lireSimple(h.curfew),
+    remarques: d.remarques ?? '',
     hotelRecherche: '',
     hotel: heb.hotel ?? '',
     hotelAdresse: heb.adresse ?? '',
@@ -71,7 +90,6 @@ export default function EditDate({ d }: { d: DateData }) {
   function set(k: string, v: any) {
     setF((cur) => ({ ...cur, [k]: v }))
   }
-
   function setChambre(i: number, k: keyof Chambre, v: string) {
     setChambres((cur) => cur.map((c, idx) => (idx === i ? { ...c, [k]: v } : c)))
   }
@@ -86,7 +104,6 @@ export default function EditDate({ d }: { d: DateData }) {
     if (!f.ville.trim() || !f.jour) { setMsg('Ville et date obligatoires'); return }
     setBusy(true); setMsg('')
 
-    // chambres → JSON, en gardant seulement les lignes remplies
     const chambresJSON = chambres
       .filter((c) => c.nombre || c.type)
       .map((c) => ({
@@ -104,9 +121,14 @@ export default function EditDate({ d }: { d: DateData }) {
       km_prochaine: f.km_prochaine ? parseInt(f.km_prochaine) : null,
       depart_hotel: f.depart_hotel.trim() || null,
       horaires: {
-        load: f.load, soundcheck: f.soundcheck,
-        doors: f.doors, set: f.set, curfew: f.curfew,
+        load: { debut: f.loadDebut, fin: f.loadFin },
+        soundcheck: { debut: f.scDebut, fin: f.scFin },
+        repas: f.repas,
+        doors: f.doors,
+        set: { debut: f.setDebut, fin: f.setFin },
+        curfew: f.curfew,
       },
+      remarques: f.remarques.trim() || null,
       hebergement: {
         hotel: f.hotel.trim() || null,
         adresse: f.hotelAdresse.trim() || null,
@@ -179,13 +201,24 @@ export default function EditDate({ d }: { d: DateData }) {
               <PaysSelect value={f.pays} onChange={(code) => set('pays', code)} />
 
               <div style={sectionStyle}>Horaires</div>
+              <PlageHoraire label="Load-in" debut={f.loadDebut} fin={f.loadFin} onDebut={(v) => set('loadDebut', v)} onFin={(v) => set('loadFin', v)} />
+              <PlageHoraire label="Soundcheck" debut={f.scDebut} fin={f.scFin} onDebut={(v) => set('scDebut', v)} onFin={(v) => set('scFin', v)} />
+              <PlageHoraire label="Set" debut={f.setDebut} fin={f.setFin} onDebut={(v) => set('setDebut', v)} onFin={(v) => set('setFin', v)} />
               <div className="add-times">
-                <div><div style={labelStyle}>Load-in</div><input className="login-input" type="time" value={f.load} onChange={(e) => set('load', e.target.value)} /></div>
-                <div><div style={labelStyle}>Soundcheck</div><input className="login-input" type="time" value={f.soundcheck} onChange={(e) => set('soundcheck', e.target.value)} /></div>
+                <div><div style={labelStyle}>Repas</div><input className="login-input" type="time" value={f.repas} onChange={(e) => set('repas', e.target.value)} /></div>
                 <div><div style={labelStyle}>Doors</div><input className="login-input" type="time" value={f.doors} onChange={(e) => set('doors', e.target.value)} /></div>
-                <div><div style={labelStyle}>Set</div><input className="login-input" type="time" value={f.set} onChange={(e) => set('set', e.target.value)} /></div>
                 <div><div style={labelStyle}>Curfew</div><input className="login-input" type="time" value={f.curfew} onChange={(e) => set('curfew', e.target.value)} /></div>
               </div>
+
+              <div style={sectionStyle}>Remarques</div>
+              <textarea
+                className="login-input"
+                placeholder="Particularités du jour (ex : Pas de VP ce soir, catering végétarien…)"
+                value={f.remarques}
+                onChange={(e) => set('remarques', e.target.value)}
+                rows={3}
+                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              />
 
               <div style={sectionStyle}>Hébergement</div>
               <div style={labelStyle}>Rechercher un hôtel</div>
