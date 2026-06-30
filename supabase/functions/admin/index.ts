@@ -41,8 +41,19 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'list': {
-        // tous les utilisateurs + leurs profils + appartenances
-        const { data: list } = await admin.auth.admin.listUsers()
+        // tous les utilisateurs (en bouclant sur toutes les pages)
+        const tousUsers: any[] = []
+        let page = 1
+        while (true) {
+          const { data: pageData, error: pageErr } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+          if (pageErr) return json({ error: pageErr.message }, 400)
+          const users = pageData?.users ?? []
+          tousUsers.push(...users)
+          if (users.length < 1000) break  // dernière page atteinte
+          page++
+        }
+        const list = { users: tousUsers }
+
         const { data: profils } = await admin.from('profils').select('*')
         const { data: membres } = await admin
           .from('membres')
