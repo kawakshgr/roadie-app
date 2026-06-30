@@ -83,18 +83,19 @@ Deno.serve(async (req) => {
     const autorise = membre?.role === 'tm' || profilDemandeur?.is_super_admin === true
     if (!autorise) return json({ error: 'Non autorisé' }, 403)
 
-    // Le compte existe-t-il déjà ?
-    const { data: list, error: listErr } = await admin.auth.admin.listUsers()
-    if (listErr) return json({ error: 'listUsers: ' + listErr.message }, 400)
-
-    const existant = list.users.find((u) => u.email === email)
+    // Le compte existe-t-il déjà ? Recherche par email dans profils (fiable, non paginé)
+    const { data: profilExistant } = await admin
+      .from('profils')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
 
     let userId: string
     let estNouveau = false
     let mdpGenere = ''
 
-    if (existant) {
-      userId = existant.id
+    if (profilExistant) {
+      userId = profilExistant.id
     } else {
       mdpGenere = mot_de_passe?.trim() || genererMdp()
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -102,11 +103,22 @@ Deno.serve(async (req) => {
         password: mdpGenere,
         email_confirm: true,
       })
-      if (createErr || !created) {
-        return json({ error: createErr?.message ?? 'Création échouée' }, 400)
+
+      if (createErr) {
+        // le compte Auth existe peut-être sans profil (orphelin) → filet de secours
+        if (createErr.message.includes('already been registered') || createErr.message.includes('already exists')) {
+          const { data: list } = await admin.auth.admin.listUsers()
+          const trouve = list?.users?.find((u) => u.email === email)
+          if (!trouve) return json({ error: 'Compte existant introuvable' }, 400)
+          userId = trouve.id
+          mdpGenere = ''
+        } else {
+          return json({ error: createErr.message }, 400)
+        }
+      } else {
+        userId = created!.user.id
+        estNouveau = true
       }
-      userId = created.user.id
-      estNouveau = true
     }
 
     // Garantir que le profil existe (compte orphelin possible), puis nom/prénom
