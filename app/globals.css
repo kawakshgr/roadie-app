@@ -540,3 +540,18 @@ body {
   background: rgba(255,69,58,.12); color: var(--red);
 }
 .btn-approve.no:hover { box-shadow: 0 4px 16px rgba(255,69,58,.2); }
+/* ===== Fil d'Ariane ===== */
+.breadcrumb {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 18px; font-size: 14px;
+}
+.crumb {
+  color: var(--accent); text-decoration: none; font-weight: 600;
+  padding: 4px 2px; transition: opacity .15s;
+  white-space: nowrap;
+}
+.crumb:hover { opacity: .7; }
+.crumb-sep { color: var(--ink-faint); }
+.crumb-current {
+  color: var(--ink-dim); font-weight: 600; white-space: nowrap;
+}
