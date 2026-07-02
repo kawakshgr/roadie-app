@@ -117,22 +117,10 @@ export default async function DayPage({
 
   return (
     <div className="wrap">
-      <nav className="breadcrumb">
-        {tournee && (
-          <>
-            <Link href={`/groupes/${tournee.groupe_id}`} className="crumb">
-              {(tournee as any).groupes?.nom ?? 'Groupe'}
-            </Link>
-            <span className="crumb-sep">›</span>
-            <Link href={`/groupes/${tournee.groupe_id}/tournees/${d.tournee_id}`} className="crumb">
-              {(tournee as any).nom ?? 'Tournée'}
-            </Link>
-            <span className="crumb-sep">›</span>
-          </>
-        )}
-        <span className="crumb-current">{d.ville}</span>
-      </nav>
-
+     <Link href={retour} className="back-btn glass">
+        <span className="back-chevron">‹</span>
+        <span>Itinéraire</span>
+      </Link>
       <div className="page-head">
         <div>
           <div className="eyebrow">Jour {numeroDate} · {fmtLong(d.jour)}</div>
